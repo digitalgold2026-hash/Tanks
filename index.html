@@ -1,1 +1,2563 @@
 
+```html
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>TANK 1990 — Battle City (Pegasus Edition)</title>
+  <style>
+    /* =====================================================================
+       STYL RETRO / PEGASUS + PEŁNA RESPONSYWNOŚĆ 100dvh DLA SMARTFONÓW
+       ===================================================================== */
+    :root {
+      --bg-dark: #141414;
+      --nes-grey: #636363;
+      --nes-grey-light: #8a8a8a;
+      --nes-grey-dark: #3a3a3a;
+      --nes-red: #c82828;
+      --nes-red-bright: #ef3b3b;
+      --nes-gold: #f7c825;
+      --pad-shell: #222327;
+      --pad-border: #3a3c42;
+      --font-pixel: "Courier New", Courier, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: var(--bg-dark);
+      color: #ffffff;
+      font-family: var(--font-pixel);
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+
+    /* Główny kontener aplikacji dopasowany do 100% ekranu */
+    #app {
+      width: 100%;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: env(safe-area-inset-top, 4px) env(safe-area-inset-right, 6px) env(safe-area-inset-bottom, 6px) env(safe-area-inset-left, 6px);
+      gap: 6px;
+    }
+
+    /* Obszar gry: plansza + panel HUD */
+    #game-area {
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* Panel HUD w stylu oryginalnego Battle City (szary pasek) */
+    #hud {
+      background: var(--nes-grey);
+      border: 3px solid var(--nes-grey-dark);
+      box-shadow: inset 2px 2px 0 var(--nes-grey-light), inset -2px -2px 0 #2b2b2b;
+      color: #000;
+      font-weight: 900;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 520px;
+      padding: 4px 8px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .hud-section {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Siatka ikonek pozostałych wrogów (20 czołgów) */
+    #enemy-icons {
+      display: grid;
+      grid-template-columns: repeat(10, 10px);
+      gap: 2px;
+      align-content: center;
+    }
+
+    .enemy-dot {
+      width: 10px;
+      height: 10px;
+      background-size: contain;
+      background-repeat: no-repeat;
+      image-rendering: pixelated;
+    }
+
+    .hud-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      line-height: 1;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .hud-label {
+      font-size: 10px;
+      color: #1a1a1a;
+      display: block;
+    }
+
+    .hud-val {
+      font-size: 15px;
+      color: #000;
+      font-weight: 900;
+    }
+
+    /* Kontener płótna (Canvas) utrzymujący proporcje 1:1 */
+    #canvas-wrap {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #game-canvas {
+      background: #000;
+      border: 4px solid var(--nes-grey);
+      box-shadow: 0 0 0 2px #000, 0 8px 24px rgba(0, 0, 0, 0.75);
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      display: block;
+      touch-action: none;
+    }
+
+    /* =====================================================================
+       KONTROLER DOTYKOWY W STYLU PEGASUS / NES
+       ===================================================================== */
+    #touch-controls {
+      width: 100%;
+      max-width: 520px;
+      flex-shrink: 0;
+      background: linear-gradient(180deg, #2b2c31 0%, #1a1b1f 100%);
+      border: 2px solid var(--pad-border);
+      border-radius: 14px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    /* Krzyżak D-Pad */
+    #dpad {
+      position: relative;
+      width: 138px;
+      height: 138px;
+      flex-shrink: 0;
+      touch-action: none;
+    }
+
+    .dpad-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .dpad-arm-h, .dpad-arm-v {
+      position: absolute;
+      background: linear-gradient(145deg, #3c3e45, #222328);
+      border: 2px solid #111;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.15);
+    }
+
+    .dpad-arm-v {
+      width: 48px;
+      height: 138px;
+      left: 45px;
+      top: 0;
+    }
+
+    .dpad-arm-h {
+      width: 138px;
+      height: 48px;
+      left: 0;
+      top: 45px;
+    }
+
+    .dpad-center {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      left: 47px;
+      top: 47px;
+      background: radial-gradient(circle, #1e1f24 30%, #2d2f36 100%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .dpad-arrow {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #8f939e;
+      font-size: 18px;
+      font-weight: bold;
+      pointer-events: none;
+      transition: color 0.05s, transform 0.05s;
+    }
+
+    .dpad-arrow.up    { top: 2px; left: 47px; }
+    .dpad-arrow.down  { bottom: 2px; left: 47px; }
+    .dpad-arrow.left  { left: 2px; top: 47px; }
+    .dpad-arrow.right { right: 2px; top: 47px; }
+
+    .dpad-arrow.active {
+      color: var(--nes-gold);
+      transform: scale(1.18);
+      text-shadow: 0 0 8px rgba(247, 200, 37, 0.8);
+    }
+
+    /* Środkowe przyciski (PAUZA / DŹWIĘK) */
+    #mid-buttons {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .nes-pill-btn {
+      background: linear-gradient(180deg, #4b4d55, #2f3137);
+      border: 2px solid #121215;
+      border-radius: 999px;
+      color: #e2e4ea;
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: 0.6px;
+      padding: 8px 12px;
+      min-width: 74px;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #0d0d0f, inset 0 1px 0 rgba(255,255,255,0.2);
+      transition: transform 0.06s, box-shadow 0.06s;
+    }
+
+    .nes-pill-btn:active, .nes-pill-btn.active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #0d0d0f;
+      color: var(--nes-gold);
+    }
+
+    /* Prawy przycisk OGIEŃ (FIRE) */
+    #fire-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    #btn-fire {
+      width: 92px;
+      height: 92px;
+      border-radius: 50%;
+      border: 4px solid #6b1111;
+      background: radial-gradient(circle at 35% 30%, #ff5c5c, var(--nes-red) 65%, #8a1414 100%);
+      color: #fff;
+      font-family: var(--font-pixel);
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: 0 6px 0 #4d0a0a, 0 10px 18px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+      transition: transform 0.05s, box-shadow 0.05s;
+    }
+
+    #btn-fire.active {
+      transform: translateY(4px) scale(0.96);
+      box-shadow: 0 2px 0 #4d0a0a, 0 4px 8px rgba(0,0,0,0.6);
+      background: radial-gradient(circle at 35% 30%, #ff7b7b, var(--nes-red-bright) 65%, #a31919 100%);
+    }
+
+    .fire-label {
+      font-size: 10px;
+      color: #9da1ac;
+      letter-spacing: 1.5px;
+      font-weight: bold;
+    }
+
+    /* Legenda klawiatury dla desktopu */
+    #desktop-bar {
+      display: none;
+      width: 100%;
+      max-width: 780px;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #9ca3af;
+      padding: 4px 10px;
+      background: #1c1d21;
+      border: 1px solid #2e3038;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    #desktop-bar kbd {
+      background: #2f313a;
+      border: 1px solid #4a4d5c;
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: #fff;
+      font-family: var(--font-pixel);
+      font-size: 11px;
+    }
+
+    .desktop-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* =====================================================================
+       UKŁAD POZIOMY NA SMARTFONIE (LANDSCAPE MOBILE)
+       ===================================================================== */
+    @media (orientation: landscape) and (max-height: 560px) {
+      #app {
+        flex-direction: row;
+        justify-content: space-between;
+        padding: 4px 8px;
+      }
+
+      #game-area {
+        order: 2;
+        flex-direction: row;
+        width: auto;
+        height: 100%;
+        gap: 6px;
+      }
+
+      #hud {
+        order: 2;
+        flex-direction: column;
+        width: 74px;
+        height: 100%;
+        max-height: 100%;
+        padding: 6px 4px;
+        justify-content: space-between;
+      }
+
+      .hud-section {
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      #enemy-icons {
+        grid-template-columns: repeat(2, 12px);
+        gap: 3px;
+      }
+
+      .enemy-dot {
+        width: 12px;
+        height: 12px;
+      }
+
+      #touch-controls {
+        position: fixed;
+        inset: 0;
+        max-width: none;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        pointer-events: none;
+        padding: 10px 14px;
+      }
+
+      #dpad, #fire-wrap, #mid-buttons {
+        pointer-events: auto;
+      }
+
+      #mid-buttons {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        flex-direction: row;
+        gap: 6px;
+      }
+
+      .nes-pill-btn {
+        min-width: 60px;
+        padding: 6px 8px;
+        font-size: 9px;
+      }
+
+      #fire-wrap {
+        align-self: flex-end;
+        margin-bottom: 12px;
+      }
+
+      #dpad {
+        align-self: flex-end;
+        margin-bottom: 6px;
+        width: 126px;
+        height: 126px;
+      }
+
+      .dpad-arm-v { width: 44px; height: 126px; left: 41px; }
+      .dpad-arm-h { width: 126px; height: 44px; top: 41px; }
+      .dpad-center { width: 40px; height: 40px; left: 43px; top: 43px; }
+      .dpad-arrow { width: 40px; height: 40px; }
+      .dpad-arrow.up { left: 43px; }
+      .dpad-arrow.down { left: 43px; }
+      .dpad-arrow.left { top: 43px; }
+      .dpad-arrow.right { top: 43px; }
+    }
+
+    /* =====================================================================
+       UKŁAD DESKTOP (DUŻE EKRANY + KLASYCZNY BOCZNY PANEL HUD)
+       ===================================================================== */
+    @media (min-width: 820px) and (min-height: 561px) {
+      #app {
+        justify-content: center;
+        padding: 12px;
+        gap: 10px;
+      }
+
+      #game-area {
+        flex-direction: row;
+        width: auto;
+        flex: 1 1 auto;
+        gap: 0;
+      }
+
+      #canvas-wrap {
+        width: auto;
+        height: 100%;
+      }
+
+      #hud {
+        order: 2;
+        flex-direction: column;
+        width: 112px;
+        height: auto;
+        align-self: stretch;
+        max-height: 640px;
+        padding: 14px 10px;
+        justify-content: space-between;
+        border-left: none;
+      }
+
+      .hud-section {
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+      }
+
+      #enemy-icons {
+        grid-template-columns: repeat(2, 16px);
+        gap: 5px;
+      }
+
+      .enemy-dot {
+        width: 16px;
+        height: 16px;
+      }
+
+      .hud-stat {
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .hud-val {
+        font-size: 20px;
+      }
+
+      #touch-controls {
+        display: none;
+      }
+
+      #touch-controls.force-show {
+        display: flex;
+      }
+
+      #desktop-bar {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- OBSZAR GRY: PŁÓTNO + PANEL HUD -->
+    <div id="game-area">
+      <!-- PANEL HUD (NA MOBILE NA GÓRZE, NA DESKTOPIE PO PRAWEJ) -->
+      <aside id="hud" aria-label="Panel stanu gry">
+        <div class="hud-section">
+          <div id="enemy-icons" title="Pozostali wrogowie"></div>
+        </div>
+
+        <div class="hud-section">
+          <div class="hud-stat" title="Wynik">
+            <span class="hud-label">1P</span>
+            <span class="hud-val" id="hud-score">0</span>
+          </div>
+          <div class="hud-stat" title="Pozostałe życia">
+            <span class="hud-label" style="display:flex;align-items:center;gap:3px;">
+              <!-- Mini ikonka czołgu gracza (SVG) -->
+              <svg width="14" height="14" viewBox="0 0 8 8" style="image-rendering:pixelated">
+                <rect x="1" y="1" width="2" height="6" fill="#e79c21"/>
+                <rect x="5" y="1" width="2" height="6" fill="#e79c21"/>
+                <rect x="2" y="2" width="4" height="4" fill="#f7d64a"/>
+                <rect x="3" y="0" width="2" height="4" fill="#f7d64a"/>
+              </svg>
+              ŻYCIA
+            </span>
+            <span class="hud-val" id="hud-lives">3</span>
+          </div>
+          <div class="hud-stat" title="Numer etapu">
+            <span class="hud-label" style="display:flex;align-items:center;gap:3px;">
+              <!-- Mini flaga etapu (SVG) -->
+              <svg width="14" height="14" viewBox="0 0 8 8" style="image-rendering:pixelated">
+                <rect x="1" y="1" width="1" height="7" fill="#000"/>
+                <rect x="2" y="1" width="5" height="3" fill="#d92b2b"/>
+                <rect x="3" y="2" width="2" height="1" fill="#000"/>
+              </svg>
+              ETAP
+            </span>
+            <span class="hud-val" id="hud-stage">1</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- PŁÓTNO GRY 208x208 LOGICAL PIXELS -->
+      <div id="canvas-wrap">
+        <canvas id="game-canvas" width="208" height="208"></canvas>
+      </div>
+    </div>
+
+    <!-- PASEK INFORMACYJNY DLA DESKTOPU -->
+    <div id="desktop-bar">
+      <div>
+        Sterowanie: <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> lub <kbd>WASD</kbd> |
+        Ogień: <kbd>Spacja</kbd> / <kbd>Z</kbd> / <kbd>Enter</kbd> |
+        Pauza: <kbd>P</kbd>
+      </div>
+      <div class="desktop-actions">
+        <button class="nes-pill-btn" id="btn-desk-pause">PAUZA</button>
+        <button class="nes-pill-btn" id="btn-desk-mute">DŹWIĘK: ON</button>
+        <button class="nes-pill-btn" id="btn-desk-pad">PAD: OFF</button>
+      </div>
+    </div>
+
+    <!-- WIRTUALNY PAD PEGASUS / NES (SMARTFON) -->
+    <div id="touch-controls">
+      <!-- LEWA STRONA: KRZYŻAK D-PAD Z OBSŁUGĄ PRZESUWANIA PALCA -->
+      <div id="dpad" aria-label="Krzyżak kierunkowy">
+        <div class="dpad-bg">
+          <div class="dpad-arm-v"></div>
+          <div class="dpad-arm-h"></div>
+          <div class="dpad-center"></div>
+        </div>
+        <div class="dpad-arrow up" id="arr-up">▲</div>
+        <div class="dpad-arrow down" id="arr-down">▼</div>
+        <div class="dpad-arrow left" id="arr-left">◀</div>
+        <div class="dpad-arrow right" id="arr-right">▶</div>
+      </div>
+
+      <!-- ŚRODEK: PAUZA I DŹWIĘK -->
+      <div id="mid-buttons">
+        <button class="nes-pill-btn" id="btn-pause">PAUZA</button>
+        <button class="nes-pill-btn" id="btn-mute">DŹWIĘK: ON</button>
+      </div>
+
+      <!-- PRAWA STRONA: DUŻY CZERWONY PRZYCISK OGIEŃ -->
+      <div id="fire-wrap">
+        <button id="btn-fire" aria-label="Ogień">OGIEŃ</button>
+        <span class="fire-label">FIRE / START</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    /* =====================================================================
+       1. STAŁE I KONFIGURACJA 1:1 Z BATTLE CITY (NES / PEGASUS)
+       ===================================================================== */
+    const LOGICAL_SIZE = 208; // 13 dużych pól * 16 px = 208x208
+    const SUB_TILES = 26;     // 26x26 pod-pól o rozmiarze 8x8 px
+    const SUB_SIZE = 8;       // Rozmiar jednego pod-pola (cegła/stal/woda/las)
+    const TANK_SIZE = 16;     // Rozmiar czołgu (2x2 pod-pola)
+
+    // Kierunki (zgodne z ruchem wskazówek zegara)
+    const DIR = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
+    const DX = [0, 1, 0, -1];
+    const DY = [-1, 0, 1, 0];
+
+    // Typy kafelków na siatce 26x26
+    const TILE = {
+      EMPTY: 0,
+      BRICK: 1,
+      STEEL: 2,
+      BUSH:  3,
+      WATER: 4,
+      EAGLE: 5,
+      EAGLE_DEAD: 6
+    };
+
+    // Maski 4 ćwiartek cegły (4x4 px każda w obrębie 8x8 px pod-pola)
+    // Pozwala to na autentyczne kruszenie cegieł warstwa po warstwie!
+    const BM = { TL: 1, TR: 2, BL: 4, BR: 8, FULL: 15 };
+
+    // Stany gry
+    const STATE = {
+      TITLE: 'TITLE',
+      CURTAIN: 'CURTAIN',
+      PLAYING: 'PLAYING',
+      PAUSED: 'PAUSED',
+      STAGE_CLEAR: 'STAGE_CLEAR',
+      GAME_OVER_ANIM: 'GAME_OVER_ANIM',
+      GAME_OVER_SCREEN: 'GAME_OVER_SCREEN'
+    };
+
+    // Typy wrogów (klasyczne 4 typy)
+    const ENEMY_TYPES = {
+      BASIC: { id: 0, name: 'BASIC', hp: 1, speed: 0.72, bulletSpeed: 2.3, points: 100, color: '#d8d8d8', accent: '#808080' },
+      FAST:  { id: 1, name: 'FAST',  hp: 1, speed: 1.25, bulletSpeed: 2.5, points: 200, color: '#e8e8ff', accent: '#6888ff' },
+      POWER: { id: 2, name: 'POWER', hp: 1, speed: 0.85, bulletSpeed: 3.6, points: 300, color: '#d0f8f8', accent: '#38a8a8' },
+      ARMOR: { id: 3, name: 'ARMOR', hp: 4, speed: 0.78, bulletSpeed: 2.6, points: 400, color: '#48c848', accent: '#1e7a1e' }
+    };
+
+    // Typy Power-Upów
+    const POWERUP_TYPES = ['HELMET', 'CLOCK', 'SHOVEL', 'STAR', 'GRENADE', 'TANK'];
+
+    // Punkty spawnu wrogów (góra: lewo, środek, prawo)
+    const ENEMY_SPAWNS = [
+      { x: 0,   y: 0 },
+      { x: 96,  y: 0 },
+      { x: 192, y: 0 }
+    ];
+
+    // Punkt spawnu gracza (po lewej stronie orzełka)
+    const PLAYER_SPAWN = { x: 64, y: 192 };
+
+    // Współrzędne muru otaczającego orzełka (na siatce 26x26)
+    const BASE_WALL_COORDS = [
+      [23, 11], [23, 12], [23, 13], [23, 14],
+      [24, 11],                     [24, 14],
+      [25, 11],                     [25, 14]
+    ];
+
+    /* =====================================================================
+       2. SYNTEZATOR DŹWIĘKÓW 8-BIT (WEB AUDIO API — ZERO PLIKÓW ZEWNĘTRZNYCH)
+       ===================================================================== */
+    class RetroAudio {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      unlock() {
+        try {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        } catch (e) {
+          // Ignoruj błędy ograniczeń autoplay
+        }
+      }
+
+      tone(freq, dur, type = 'square', vol = 0.1, delay = 0, slideTo = null) {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime + delay;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, now);
+          if (slideTo !== null) {
+            osc.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), now + dur);
+          }
+          gain.gain.setValueAtTime(vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + dur + 0.01);
+        } catch (e) {}
+      }
+
+      noise(dur, vol = 0.14, filterFreq = 800, delay = 0) {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime + delay;
+          const bufferSize = Math.floor(this.ctx.sampleRate * dur);
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          const src = this.ctx.createBufferSource();
+          src.buffer = buffer;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(filterFreq, now);
+          filter.frequency.exponentialRampToValueAtTime(120, now + dur);
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(vol, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+          src.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          src.start(now);
+        } catch (e) {}
+      }
+
+      playStartJingle() {
+        // Klasyczna fanfara startowa w stylu Battle City
+        const notes = [
+          [261.6, 0.11, 0.00], [329.6, 0.11, 0.12], [392.0, 0.11, 0.24],
+          [523.3, 0.22, 0.36], [392.0, 0.11, 0.60], [523.3, 0.35, 0.72]
+        ];
+        notes.forEach(([f, d, t]) => this.tone(f, d, 'square', 0.11, t));
+      }
+
+      playShoot() {
+        this.tone(580, 0.09, 'square', 0.09, 0, 140);
+      }
+
+      playBrickHit() {
+        this.noise(0.07, 0.10, 650);
+        this.tone(150, 0.06, 'triangle', 0.08, 0, 70);
+      }
+
+      playSteelHit() {
+        this.tone(920, 0.07, 'square', 0.08, 0, 680);
+      }
+
+      playExplosion(big = true) {
+        if (big) {
+          this.noise(0.32, 0.20, 900);
+          this.tone(110, 0.28, 'sawtooth', 0.12, 0, 32);
+        } else {
+          this.noise(0.14, 0.12, 700);
+        }
+      }
+
+      playPowerUpSpawn() {
+        this.tone(440, 0.07, 'square', 0.08, 0.00);
+        this.tone(660, 0.07, 'square', 0.08, 0.07);
+        this.tone(880, 0.10, 'square', 0.08, 0.14);
+      }
+
+      playPowerUpCollect() {
+        const seq = [523.3, 659.3, 784.0, 1046.5];
+        seq.forEach((f, i) => this.tone(f, 0.07, 'square', 0.10, i * 0.055));
+      }
+
+      playOneUp() {
+        const seq = [659.3, 784.0, 1318.5, 1046.5, 1174.7, 1568.0];
+        seq.forEach((f, i) => this.tone(f, 0.08, 'square', 0.10, i * 0.07));
+      }
+
+      playGameOver() {
+        const seq = [
+          [392.0, 0.18, 0.00], [349.2, 0.18, 0.20],
+          [329.6, 0.18, 0.40], [261.6, 0.45, 0.60]
+        ];
+        seq.forEach(([f, d, t]) => this.tone(f, d, 'sawtooth', 0.11, t));
+      }
+
+      playTick() {
+        this.tone(740, 0.04, 'square', 0.07);
+      }
+    }
+
+    const audio = new RetroAudio();
+
+    /* =====================================================================
+       3. PROJEKTY 5 KLASYCZNYCH ETAPÓW (SIATKA 13x13 DUŻYCH KAFELKÓW)
+       Legenda:
+         '.' = pusto, '#' = cegła, '@' = stal, '%' = krzaki/las, '~' = woda
+         'H' = dolna połowa cegły, 'T' = górna połowa cegły
+         Baza z orzełkiem jest zawsze generowana na dole pośrodku (rzędy 11-12)
+       ===================================================================== */
+    const STAGES = [
+      // ETAP 1: Wierne odwzorowanie kultowego poziomu 1 z Battle City!
+      {
+        map: [
+          '.............',
+          '.#.#.#.#.#.#.',
+          '.#.#.#.#.#.#.',
+          '.#.#.#@#.#.#.',
+          '.#.#.#.#.#.#.',
+          '.#.#.....#.#.',
+          '..#..#.#..#..',
+          '#..##...##..#',
+          '@..##...##..@',
+          '.#.#.#.#.#.#.',
+          '.#.#.#.#.#.#.',
+          '.#.#.....#.#.',
+          '.............'
+        ],
+        enemies: [
+          'BASIC','BASIC','BASIC','BASIC','BASIC','BASIC','BASIC','BASIC',
+          'BASIC','BASIC','BASIC','BASIC','BASIC','BASIC','BASIC','BASIC',
+          'BASIC','BASIC','FAST','FAST'
+        ]
+      },
+      // ETAP 2: Stalowe kolumny, las i szybsze czołgi
+      {
+        map: [
+          '.............',
+          '...#...@...#.',
+          '...#...@...#.',
+          '.@.#...#...#.',
+          '.%...#.#.@...',
+          '.%...#.#...%.',
+          '.#.#.@.@.#.#.',
+          '...#.....#...',
+          '.#.#.#.#.#.#.',
+          '.#...@...@.#.',
+          '.#.#.....#.#.',
+          '...#.....#...',
+          '.............'
+        ],
+        enemies: [
+          'BASIC','BASIC','BASIC','FAST','BASIC','BASIC','FAST','BASIC',
+          'POWER','BASIC','FAST','BASIC','POWER','BASIC','FAST','BASIC',
+          'ARMOR','FAST','POWER','ARMOR'
+        ]
+      },
+      // ETAP 3: Rzeka z mostami i zasadzki w krzakach
+      {
+        map: [
+          '.............',
+          '..#..%%%..#..',
+          '..#..%#%..#..',
+          '.....%%%.....',
+          '~~..~~~~~..~~',
+          '~~..~~~~~..~~',
+          '.#...#.#...#.',
+          '.#.#.#@#.#.#.',
+          '.%.#.....#.%.',
+          '.%.#.##..#.%.',
+          '...#.....#...',
+          '.#.........#.',
+          '.............'
+        ],
+        enemies: [
+          'BASIC','FAST','BASIC','POWER','FAST','BASIC','FAST','POWER',
+          'BASIC','ARMOR','FAST','POWER','BASIC','FAST','ARMOR','POWER',
+          'FAST','ARMOR','POWER','ARMOR'
+        ]
+      },
+      // ETAP 4: Stalowa forteca
+      {
+        map: [
+          '.............',
+          '.###.....###.',
+          '.#@#..@..#@#.',
+          '.###.#.#.###.',
+          '....##.##....',
+          '.@..#...#..@.',
+          '.%..#.@.#..%.',
+          '.%..#...#..%.',
+          '.#.##...##.#.',
+          '.#....#....#.',
+          '.#.##...##.#.',
+          '.............',
+          '.............'
+        ],
+        enemies: [
+          'FAST','BASIC','POWER','FAST','POWER','ARMOR','FAST','POWER',
+          'BASIC','ARMOR','FAST','POWER','ARMOR','FAST','POWER','ARMOR',
+          'POWER','ARMOR','FAST','ARMOR'
+        ]
+      },
+      // ETAP 5: Wyspa i ciężki szturm opancerzony
+      {
+        map: [
+          '.............',
+          '.#.~.#.#.~.#.',
+          '.#.~.#@#.~.#.',
+          '.%.~.....~.%.' ,
+          '.%..##.##..%.',
+          '....#@.@#....',
+          '.~~..#.#..~~.',
+          '.#...#.#...#.',
+          '.#.#.###.#.#.',
+          '.#.#.....#.#.',
+          '...#.@.@.#...',
+          '.#.........#.',
+          '.............'
+        ],
+        enemies: [
+          'POWER','FAST','ARMOR','POWER','FAST','ARMOR','POWER','FAST',
+          'ARMOR','POWER','FAST','ARMOR','POWER','ARMOR','FAST','ARMOR',
+          'POWER','ARMOR','POWER','ARMOR'
+        ]
+      }
+    ];
+
+    /* =====================================================================
+       4. STAN GRY I ZMIENNE GLOBALNE
+       ===================================================================== */
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    const hudScoreEl = document.getElementById('hud-score');
+    const hudLivesEl = document.getElementById('hud-lives');
+    const hudStageEl = document.getElementById('hud-stage');
+    const enemyIconsEl = document.getElementById('enemy-icons');
+
+    // Mapa 26x26 + maska cegieł 26x26
+    let grid = [];
+    let brickMask = [];
+
+    // Główny obiekt stanu
+    const game = {
+      state: STATE.TITLE,
+      stage: 1,
+      score: 0,
+      hiScore: 20000,
+      lives: 3,
+      playerTier: 0, // 0..3 gwiazdki
+      frame: 0,
+
+      // Timery efektów
+      curtainTimer: 0,
+      freezeTimer: 0,
+      shovelTimer: 0,
+      gameOverY: LOGICAL_SIZE + 16,
+      stageClearTimer: 0,
+      stageClearDelay: 0,
+
+      // Kolejka i liczniki wrogów
+      enemyQueue: [],
+      spawnTimer: 0,
+      spawnIndex: 0,
+      enemiesSpawnedCount: 0,
+      killsByType: [0, 0, 0, 0],
+
+      // Obiekty na planszy
+      player: null,
+      enemies: [],
+      bullets: [],
+      explosions: [],
+      floatTexts: [],
+      spawns: [],
+      powerUp: null,
+      eagleAlive: true
+    };
+
+    // Stan wejścia (klawiatura + ekran dotykowy)
+    const input = {
+      keys: { up: false, down: false, left: false, right: false, fire: false },
+      touchDir: null, // DIR.UP/DOWN/LEFT/RIGHT lub null
+      touchFire: false,
+      lastDirOrder: [],
+      fireLock: false
+    };
+
+    /* =====================================================================
+       5. POMOCNICZE FUNKCJE MAPY I KOLIZJI
+       ===================================================================== */
+    function initEmptyGrid() {
+      grid = Array.from({ length: SUB_TILES }, () => new Uint8Array(SUB_TILES));
+      brickMask = Array.from({ length: SUB_TILES }, () => new Uint8Array(SUB_TILES));
+    }
+
+    function setSubTile(r, c, type) {
+      if (r < 0 || r >= SUB_TILES || c < 0 || c >= SUB_TILES) return;
+      grid[r][c] = type;
+      brickMask[r][c] = (type === TILE.BRICK) ? BM.FULL : 0;
+    }
+
+    function setMajorTile(mr, mc, char) {
+      const r = mr * 2;
+      const c = mc * 2;
+      let t = TILE.EMPTY;
+      if (char === '#') t = TILE.BRICK;
+      else if (char === '@') t = TILE.STEEL;
+      else if (char === '%') t = TILE.BUSH;
+      else if (char === '~') t = TILE.WATER;
+
+      setSubTile(r, c, t);
+      setSubTile(r, c + 1, t);
+      setSubTile(r + 1, c, t);
+      setSubTile(r + 1, c + 1, t);
+    }
+
+    function buildBaseFortress(materialType) {
+      for (const [r, c] of BASE_WALL_COORDS) {
+        setSubTile(r, c, materialType);
+      }
+      // Orzełek na polach (24..25, 12..13)
+      const eagleTile = game.eagleAlive ? TILE.EAGLE : TILE.EAGLE_DEAD;
+      setSubTile(24, 12, eagleTile);
+      setSubTile(24, 13, eagleTile);
+      setSubTile(25, 12, eagleTile);
+      setSubTile(25, 13, eagleTile);
+    }
+
+    function loadStage(stageNum) {
+      initEmptyGrid();
+      const idx = (stageNum - 1) % STAGES.length;
+      const def = STAGES[idx];
+
+      for (let mr = 0; mr < 13; mr++) {
+        const rowStr = def.map[mr] || '.............';
+        for (let mc = 0; mc < 13; mc++) {
+          setMajorTile(mr, mc, rowStr[mc] || '.');
+        }
+      }
+
+      // Upewnij się, że punkty spawnu wrogów i gracza są wolne
+      const clearMajor = [[0, 0], [0, 6], [0, 12], [12, 4]];
+      for (const [mr, mc] of clearMajor) {
+        setMajorTile(mr, mc, '.');
+      }
+
+      game.eagleAlive = true;
+      buildBaseFortress(TILE.BRICK);
+
+      // Kolejka wrogów (przy kolejnych pętlach powyżej 5 etapu utrudniamy skład)
+      const loopBonus = Math.floor((stageNum - 1) / STAGES.length);
+      game.enemyQueue = def.enemies.map((typeKey, i) => {
+        if (loopBonus > 0 && typeKey === 'BASIC' && i % 2 === 0) return 'FAST';
+        if (loopBonus > 1 && typeKey === 'FAST' && i % 3 === 0) return 'ARMOR';
+        return typeKey;
+      });
+
+      game.enemies = [];
+      game.bullets = [];
+      game.explosions = [];
+      game.floatTexts = [];
+      game.spawns = [];
+      game.powerUp = null;
+      game.freezeTimer = 0;
+      game.shovelTimer = 0;
+      game.spawnTimer = 25;
+      game.spawnIndex = 0;
+      game.enemiesSpawnedCount = 0;
+      game.killsByType = [0, 0, 0, 0];
+      game.stageClearDelay = 0;
+
+      spawnPlayer(false);
+      updateHUD();
+    }
+
+    function spawnPlayer(resetTier = false) {
+      if (resetTier) game.playerTier = 0;
+      game.player = null;
+      game.spawns.push({
+        isPlayer: true,
+        x: PLAYER_SPAWN.x,
+        y: PLAYER_SPAWN.y,
+        timer: 42
+      });
+    }
+
+    function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+      return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+    }
+
+    // Sprawdza, czy prostokąt czołgu koliduje z nieprzejezdnym terenem
+    function collidesWithMap(x, y, size = TANK_SIZE) {
+      if (x < 0 || y < 0 || x + size > LOGICAL_SIZE || y + size > LOGICAL_SIZE) {
+        return true;
+      }
+      const c0 = Math.floor(x / SUB_SIZE);
+      const c1 = Math.floor((x + size - 0.01) / SUB_SIZE);
+      const r0 = Math.floor(y / SUB_SIZE);
+      const r1 = Math.floor((y + size - 0.01) / SUB_SIZE);
+
+      for (let r = r0; r <= r1; r++) {
+        for (let c = c0; c <= c1; c++) {
+          const t = grid[r][c];
+          if (t === TILE.BRICK || t === TILE.STEEL || t === TILE.WATER || t === TILE.EAGLE || t === TILE.EAGLE_DEAD) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    // Sprawdza kolizję czołgu z innymi czołgami
+    function collidesWithOtherTanks(tank, x, y) {
+      const all = [];
+      if (game.player && game.player !== tank) all.push(game.player);
+      for (const e of game.enemies) {
+        if (e !== tank) all.push(e);
+      }
+      for (const other of all) {
+        // Jeśli już się nakładają (np. przy spawnie), pozwól wyjechać
+        const already = rectsOverlap(tank.x + 1, tank.y + 1, TANK_SIZE - 2, TANK_SIZE - 2, other.x + 1, other.y + 1, TANK_SIZE - 2, TANK_SIZE - 2);
+        if (already) continue;
+        if (rectsOverlap(x + 0.5, y + 0.5, TANK_SIZE - 1, TANK_SIZE - 1, other.x + 0.5, other.y + 0.5, TANK_SIZE - 1, TANK_SIZE - 1)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    /* =====================================================================
+       6. RUCH CZOŁGÓW I CORNER ASSIST (WSPOMAGANIE SKRĘCANIA NA SIATCE)
+       ===================================================================== */
+    function moveTank(tank, newDir) {
+      const prevDir = tank.dir;
+
+      // Przy skręcie o 90 stopni wyrównaj prostopadłą współrzędną do siatki 8px (jak w NES)
+      if (prevDir !== newDir) {
+        const isVert = (newDir === DIR.UP || newDir === DIR.DOWN);
+        const wasVert = (prevDir === DIR.UP || prevDir === DIR.DOWN);
+        if (isVert !== wasVert) {
+          if (isVert) {
+            const snappedX = Math.round(tank.x / SUB_SIZE) * SUB_SIZE;
+            if (Math.abs(snappedX - tank.x) <= 5 && !collidesWithMap(snappedX, tank.y)) {
+              tank.x = snappedX;
+            }
+          } else {
+            const snappedY = Math.round(tank.y / SUB_SIZE) * SUB_SIZE;
+            if (Math.abs(snappedY - tank.y) <= 5 && !collidesWithMap(tank.x, snappedY)) {
+              tank.y = snappedY;
+            }
+          }
+        }
+        tank.dir = newDir;
+      }
+
+      const nx = tank.x + DX[newDir] * tank.speed;
+      const ny = tank.y + DY[newDir] * tank.speed;
+
+      if (!collidesWithMap(nx, ny) && !collidesWithOtherTanks(tank, nx, ny)) {
+        tank.x = nx;
+        tank.y = ny;
+        tank.treadFrame = (tank.treadFrame + 0.25) % 2;
+        return true;
+      }
+
+      // Corner assist podczas jazdy na wprost (jeśli czołg zahacza o róg <= 4px)
+      if (newDir === DIR.UP || newDir === DIR.DOWN) {
+        const snappedX = Math.round(tank.x / SUB_SIZE) * SUB_SIZE;
+        if (Math.abs(snappedX - tank.x) <= 4.5 && snappedX !== tank.x) {
+          if (!collidesWithMap(snappedX, ny) && !collidesWithOtherTanks(tank, snappedX, ny)) {
+            tank.x += Math.sign(snappedX - tank.x) * Math.min(Math.abs(snappedX - tank.x), tank.speed);
+            tank.treadFrame = (tank.treadFrame + 0.25) % 2;
+            return true;
+          }
+        }
+      } else {
+        const snappedY = Math.round(tank.y / SUB_SIZE) * SUB_SIZE;
+        if (Math.abs(snappedY - tank.y) <= 4.5 && snappedY !== tank.y) {
+          if (!collidesWithMap(nx, snappedY) && !collidesWithOtherTanks(tank, nx, snappedY)) {
+            tank.y += Math.sign(snappedY - tank.y) * Math.min(Math.abs(snappedY - tank.y), tank.speed);
+            tank.treadFrame = (tank.treadFrame + 0.25) % 2;
+            return true;
+          }
+        }
+      }
+
+      return false;
+    }
+
+    /* =====================================================================
+       7. STRZELANIE, POCISKI I WARSTWOWE KRUSZENIE CEGIEŁ
+       ===================================================================== */
+    function fireBullet(tank) {
+      if (tank.fireCooldown > 0) return false;
+
+      // Limit jednoczesnych pocisków dla danego czołgu
+      const activeCount = game.bullets.filter(b => b.owner === tank).length;
+      const maxBullets = tank.isPlayer ? (game.playerTier >= 2 ? 2 : 1) : 1;
+      if (activeCount >= maxBullets) return false;
+
+      const speed = tank.isPlayer
+        ? (game.playerTier >= 1 ? 3.8 : 2.6)
+        : tank.bulletSpeed;
+      const power = tank.isPlayer ? (game.playerTier >= 3 ? 2 : 1) : 1;
+
+      // Wyjście pocisku dokładnie ze środka lufy
+      let bx = tank.x + 6;
+      let by = tank.y + 6;
+      if (tank.dir === DIR.UP)    by = tank.y - 2;
+      if (tank.dir === DIR.DOWN)  by = tank.y + TANK_SIZE - 2;
+      if (tank.dir === DIR.LEFT)  bx = tank.x - 2;
+      if (tank.dir === DIR.RIGHT) bx = tank.x + TANK_SIZE - 2;
+
+      game.bullets.push({
+        x: bx,
+        y: by,
+        w: 4,
+        h: 4,
+        dir: tank.dir,
+        speed,
+        power,
+        isPlayer: tank.isPlayer,
+        owner: tank,
+        alive: true
+      });
+
+      tank.fireCooldown = tank.isPlayer ? 10 : 28;
+      if (tank.isPlayer) audio.playShoot();
+      return true;
+    }
+
+    // Zniszczenie warstwy cegły w pod-polu (r, c) zależnie od kierunku lotu pocisku
+    function erodeBrick(r, c, dir) {
+      let mask = brickMask[r][c];
+      if (!mask) return false;
+
+      if (dir === DIR.UP) {
+        if (mask & (BM.BL | BM.BR)) mask &= ~(BM.BL | BM.BR);
+        else mask = 0;
+      } else if (dir === DIR.DOWN) {
+        if (mask & (BM.TL | BM.TR)) mask &= ~(BM.TL | BM.TR);
+        else mask = 0;
+      } else if (dir === DIR.LEFT) {
+        if (mask & (BM.TR | BM.BR)) mask &= ~(BM.TR | BM.BR);
+        else mask = 0;
+      } else if (dir === DIR.RIGHT) {
+        if (mask & (BM.TL | BM.BL)) mask &= ~(BM.TL | BM.BL);
+        else mask = 0;
+      }
+
+      brickMask[r][c] = mask;
+      if (mask === 0) grid[r][c] = TILE.EMPTY;
+      return true;
+    }
+
+    function updateBullets() {
+      for (const b of game.bullets) {
+        if (!b.alive) continue;
+
+        b.x += DX[b.dir] * b.speed;
+        b.y += DY[b.dir] * b.speed;
+
+        // Kolizja z granicą planszy
+        if (b.x < 0 || b.y < 0 || b.x + b.w > LOGICAL_SIZE || b.y + b.h > LOGICAL_SIZE) {
+          b.alive = false;
+          spawnExplosion(b.x + 2, b.y + 2, false);
+          if (b.isPlayer) audio.playSteelHit();
+          continue;
+        }
+
+        // Kolizja z mapą (pocisk ma szerokość rażenia 16px prostopadle do toru lotu jak w Battle City)
+        let hitWall = false;
+        let hitBrick = false;
+        let hitSteel = false;
+
+        let checkBox;
+        if (b.dir === DIR.UP || b.dir === DIR.DOWN) {
+          checkBox = { x: b.x - 4, y: b.y, w: 12, h: b.h };
+        } else {
+          checkBox = { x: b.x, y: b.y - 4, w: b.w, h: 12 };
+        }
+
+        const c0 = Math.max(0, Math.floor(checkBox.x / SUB_SIZE));
+        const c1 = Math.min(SUB_TILES - 1, Math.floor((checkBox.x + checkBox.w - 0.1) / SUB_SIZE));
+        const r0 = Math.max(0, Math.floor(checkBox.y / SUB_SIZE));
+        const r1 = Math.min(SUB_TILES - 1, Math.floor((checkBox.y + checkBox.h - 0.1) / SUB_SIZE));
+
+        for (let r = r0; r <= r1; r++) {
+          for (let c = c0; c <= c1; c++) {
+            const t = grid[r][c];
+            if (t === TILE.BRICK) {
+              if (erodeBrick(r, c, b.dir)) {
+                hitWall = true;
+                hitBrick = true;
+              }
+            } else if (t === TILE.STEEL) {
+              hitWall = true;
+              hitSteel = true;
+              if (b.power >= 2) {
+                setSubTile(r, c, TILE.EMPTY);
+              }
+            } else if (t === TILE.EAGLE) {
+              hitWall = true;
+              destroyEagle();
+            }
+          }
+        }
+
+        if (hitWall) {
+          b.alive = false;
+          spawnExplosion(b.x + 2, b.y + 2, false);
+          if (b.isPlayer) {
+            if (hitBrick) audio.playBrickHit();
+            else if (hitSteel) audio.playSteelHit();
+          }
+          continue;
+        }
+      }
+
+      // Zderzanie się pocisków w locie (gracz vs wróg)
+      for (let i = 0; i < game.bullets.length; i++) {
+        const a = game.bullets[i];
+        if (!a.alive) continue;
+        for (let j = i + 1; j < game.bullets.length; j++) {
+          const b = game.bullets[j];
+          if (!b.alive || a.isPlayer === b.isPlayer) continue;
+          if (rectsOverlap(a.x - 1, a.y - 1, a.w + 2, a.h + 2, b.x - 1, b.y - 1, b.w + 2, b.h + 2)) {
+            a.alive = false;
+            b.alive = false;
+            spawnExplosion((a.x + b.x) / 2 + 2, (a.y + b.y) / 2 + 2, false);
+          }
+        }
+      }
+
+      // Kolizje pocisków z czołgami
+      for (const b of game.bullets) {
+        if (!b.alive) continue;
+
+        if (b.isPlayer) {
+          for (const e of game.enemies) {
+            if (!e.alive) continue;
+            if (rectsOverlap(b.x, b.y, b.w, b.h, e.x, e.y, TANK_SIZE, TANK_SIZE)) {
+              b.alive = false;
+              hitEnemy(e);
+              break;
+            }
+          }
+        } else if (game.player && game.player.alive) {
+          const p = game.player;
+          if (rectsOverlap(b.x, b.y, b.w, b.h, p.x + 1, p.y + 1, TANK_SIZE - 2, TANK_SIZE - 2)) {
+            b.alive = false;
+            if (p.shieldTimer <= 0) {
+              killPlayer();
+            } else {
+              spawnExplosion(b.x + 2, b.y + 2, false);
+            }
+          }
+        }
+      }
+
+      game.bullets = game.bullets.filter(b => b.alive);
+    }
+
+    /* =====================================================================
+       8. ZNISZCZENIA, POWER-UPY I LOGIKA PRZECIWNIKÓW
+       ===================================================================== */
+    function spawnExplosion(cx, cy, big = true) {
+      game.explosions.push({
+        x: cx,
+        y: cy,
+        big,
+        timer: 0,
+        maxTimer: big ? 22 : 10
+      });
+    }
+
+    function addFloatText(x, y, text, color = '#ffffff') {
+      game.floatTexts.push({ x, y, text, color, timer: 45 });
+    }
+
+    function addScore(pts) {
+      game.score += pts;
+      if (game.score > game.hiScore) game.hiScore = game.score;
+      updateHUD();
+    }
+
+    function spawnPowerUp() {
+      const type = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
+      // Losuj bezpieczne miejsce na planszy (z dala od samej krawędzi i orzełka)
+      let px = 16 + Math.floor(Math.random() * 11) * 16;
+      let py = 16 + Math.floor(Math.random() * 10) * 16;
+      game.powerUp = {
+        type,
+        x: px,
+        y: py,
+        timer: 780 // ~13 sekund
+      };
+      audio.playPowerUpSpawn();
+    }
+
+    function collectPowerUp() {
+      const pu = game.powerUp;
+      if (!pu) return;
+      addScore(500);
+      addFloatText(pu.x + 8, pu.y + 8, '500', '#ffffff');
+      audio.playPowerUpCollect();
+
+      switch (pu.type) {
+        case 'HELMET':
+          if (game.player) game.player.shieldTimer = 600; // 10 s
+          break;
+        case 'CLOCK':
+          game.freezeTimer = 600; // 10 s
+          break;
+        case 'SHOVEL':
+          game.shovelTimer = 900; // 15 s
+          buildBaseFortress(TILE.STEEL);
+          break;
+        case 'STAR':
+          game.playerTier = Math.min(3, game.playerTier + 1);
+          break;
+        case 'GRENADE':
+          for (const e of game.enemies) {
+            if (e.alive) {
+              e.alive = false;
+              spawnExplosion(e.x + 8, e.y + 8, true);
+              game.killsByType[e.typeDef.id]++;
+            }
+          }
+          audio.playExplosion(true);
+          game.enemies = [];
+          break;
+        case 'TANK':
+          game.lives++;
+          audio.playOneUp();
+          addFloatText(pu.x + 8, pu.y - 2, '1UP', '#55ff55');
+          updateHUD();
+          break;
+      }
+
+      game.powerUp = null;
+    }
+
+    function hitEnemy(e) {
+      // Czołg bonusowy (migający na czerwono) upuszcza Power-Up przy pierwszym trafieniu!
+      if (e.isBonus) {
+        e.isBonus = false;
+        spawnPowerUp();
+      }
+
+      e.hp--;
+      if (e.hp > 0) {
+        audio.playSteelHit();
+        spawnExplosion(e.x + 8, e.y + 8, false);
+        return;
+      }
+
+      e.alive = false;
+      game.killsByType[e.typeDef.id]++;
+      addScore(e.typeDef.points);
+      spawnExplosion(e.x + 8, e.y + 8, true);
+      addFloatText(e.x + 8, e.y + 8, String(e.typeDef.points), '#ffffff');
+      audio.playExplosion(true);
+    }
+
+    function killPlayer() {
+      if (!game.player) return;
+      const p = game.player;
+      p.alive = false;
+      spawnExplosion(p.x + 8, p.y + 8, true);
+      audio.playExplosion(true);
+      game.player = null;
+      game.lives--;
+      updateHUD();
+
+      if (game.lives <= 0) {
+        triggerGameOver();
+      } else {
+        setTimeout(() => {
+          if (game.state === STATE.PLAYING && game.eagleAlive) {
+            spawnPlayer(true);
+          }
+        }, 700);
+      }
+    }
+
+    function destroyEagle() {
+      if (!game.eagleAlive) return;
+      game.eagleAlive = false;
+      setSubTile(24, 12, TILE.EAGLE_DEAD);
+      setSubTile(24, 13, TILE.EAGLE_DEAD);
+      setSubTile(25, 12, TILE.EAGLE_DEAD);
+      setSubTile(25, 13, TILE.EAGLE_DEAD);
+      spawnExplosion(104, 200, true);
+      audio.playExplosion(true);
+      triggerGameOver();
+    }
+
+    function triggerGameOver() {
+      if (game.state === STATE.GAME_OVER_ANIM || game.state === STATE.GAME_OVER_SCREEN) return;
+      game.state = STATE.GAME_OVER_ANIM;
+      game.gameOverY = LOGICAL_SIZE + 16;
+      audio.playGameOver();
+    }
+
+    function updateSpawns() {
+      // Tworzenie nowych wrogów (max 4 jednocześnie na planszy)
+      const activeEnemySpawns = game.spawns.filter(s => !s.isPlayer).length;
+      if (game.enemyQueue.length > 0 && (game.enemies.length + activeEnemySpawns) < 4) {
+        game.spawnTimer--;
+        if (game.spawnTimer <= 0) {
+          const pt = ENEMY_SPAWNS[game.spawnIndex % ENEMY_SPAWNS.length];
+          game.spawnIndex++;
+
+          // Sprawdź, czy punkt spawnu nie jest zablokowany przez inny czołg
+          let blocked = false;
+          if (game.player && rectsOverlap(pt.x, pt.y, 16, 16, game.player.x, game.player.y, 16, 16)) blocked = true;
+          for (const e of game.enemies) {
+            if (rectsOverlap(pt.x, pt.y, 16, 16, e.x, e.y, 16, 16)) blocked = true;
+          }
+
+          if (!blocked) {
+            const typeKey = game.enemyQueue.shift();
+            game.enemiesSpawnedCount++;
+            // Klasyczne czołgi bonusowe: 4., 11. oraz 18. wróg na etapie!
+            const isBonus = (game.enemiesSpawnedCount === 4 || game.enemiesSpawnedCount === 11 || game.enemiesSpawnedCount === 18);
+
+            game.spawns.push({
+              isPlayer: false,
+              x: pt.x,
+              y: pt.y,
+              typeKey,
+              isBonus,
+              timer: 54
+            });
+            game.spawnTimer = Math.max(70, 145 - game.stage * 8);
+            updateHUD();
+          } else {
+            game.spawnTimer = 25;
+          }
+        }
+      }
+
+      // Aktualizacja animacji migających gwiazdek spawnu
+      for (const s of game.spawns) {
+        s.timer--;
+        if (s.timer <= 0) {
+          if (s.isPlayer) {
+            game.player = {
+              isPlayer: true,
+              x: s.x,
+              y: s.y,
+              dir: DIR.UP,
+              speed: 1.25,
+              treadFrame: 0,
+              shieldTimer: 180, // 3 s ochrony po odrodzeniu
+              fireCooldown: 0,
+              alive: true
+            };
+          } else {
+            const def = ENEMY_TYPES[s.typeKey];
+            game.enemies.push({
+              isPlayer: false,
+              typeDef: def,
+              x: s.x,
+              y: s.y,
+              dir: DIR.DOWN,
+              speed: def.speed,
+              bulletSpeed: def.bulletSpeed,
+              hp: def.hp,
+              isBonus: s.isBonus,
+              treadFrame: 0,
+              fireCooldown: 30 + Math.floor(Math.random() * 40),
+              aiTurnTimer: 40 + Math.floor(Math.random() * 80),
+              alive: true
+            });
+          }
+        }
+      }
+      game.spawns = game.spawns.filter(s => s.timer > 0);
+    }
+
+    function updateEnemies() {
+      if (game.freezeTimer > 0) {
+        game.freezeTimer--;
+        return;
+      }
+
+      for (const e of game.enemies) {
+        if (!e.alive) continue;
+        if (e.fireCooldown > 0) e.fireCooldown--;
+
+        const moved = moveTank(e, e.dir);
+        e.aiTurnTimer--;
+
+        // AI zmiany kierunku: po zderzeniu lub co pewien czas (z lekkim ciążeniem w stronę bazy)
+        if (!moved || e.aiTurnTimer <= 0) {
+          const choices = [DIR.UP, DIR.RIGHT, DIR.DOWN, DIR.LEFT];
+          if (Math.random() < 0.45) {
+            // Preferuj kierunek w dół lub w stronę środka (orzełka)
+            if (e.y < 160 && Math.random() < 0.6) {
+              e.dir = DIR.DOWN;
+            } else {
+              e.dir = e.x < 96 ? DIR.RIGHT : DIR.LEFT;
+            }
+          } else {
+            e.dir = choices[Math.floor(Math.random() * 4)];
+          }
+          e.aiTurnTimer = 35 + Math.floor(Math.random() * 75);
+        }
+
+        // Strzelanie wroga
+        if (e.fireCooldown <= 0 && Math.random() < 0.04) {
+          fireBullet(e);
+        }
+      }
+
+      game.enemies = game.enemies.filter(e => e.alive);
+    }
+
+    /* =====================================================================
+       9. GŁÓWNA AKTUALIZACJA LOGIKI (60 FPS)
+       ===================================================================== */
+    function getDesiredDirection() {
+      if (input.touchDir !== null) return input.touchDir;
+      for (let i = input.lastDirOrder.length - 1; i >= 0; i--) {
+        const d = input.lastDirOrder[i];
+        if (d === DIR.UP && input.keys.up) return DIR.UP;
+        if (d === DIR.DOWN && input.keys.down) return DIR.DOWN;
+        if (d === DIR.LEFT && input.keys.left) return DIR.LEFT;
+        if (d === DIR.RIGHT && input.keys.right) return DIR.RIGHT;
+      }
+      if (input.keys.up) return DIR.UP;
+      if (input.keys.down) return DIR.DOWN;
+      if (input.keys.left) return DIR.LEFT;
+      if (input.keys.right) return DIR.RIGHT;
+      return null;
+    }
+
+    function update() {
+      game.frame++;
+
+      if (game.state === STATE.CURTAIN) {
+        game.curtainTimer--;
+        if (game.curtainTimer <= 0) {
+          game.state = STATE.PLAYING;
+        }
+        return;
+      }
+
+      if (game.state === STATE.STAGE_CLEAR) {
+        game.stageClearTimer++;
+        if (game.stageClearTimer === 25 || game.stageClearTimer === 50 || game.stageClearTimer === 75 || game.stageClearTimer === 100) {
+          audio.playTick();
+        }
+        if (game.stageClearTimer >= 185) {
+          game.stage++;
+          startStageCurtain();
+        }
+        return;
+      }
+
+      if (game.state === STATE.GAME_OVER_ANIM) {
+        if (game.gameOverY > LOGICAL_SIZE / 2 - 14) {
+          game.gameOverY -= 1.4;
+        } else {
+          game.stageClearTimer++;
+          if (game.stageClearTimer > 95) {
+            game.state = STATE.GAME_OVER_SCREEN;
+          }
+        }
+        updateEffects();
+        return;
+      }
+
+      if (game.state !== STATE.PLAYING) return;
+
+      // Efekt łopaty (stalowa baza z miganiem pod koniec działania)
+      if (game.shovelTimer > 0) {
+        game.shovelTimer--;
+        if (game.shovelTimer <= 180 && game.shovelTimer > 0) {
+          const flashSteel = Math.floor(game.shovelTimer / 12) % 2 === 0;
+          buildBaseFortress(flashSteel ? TILE.STEEL : TILE.BRICK);
+        } else if (game.shovelTimer === 0) {
+          buildBaseFortress(TILE.BRICK);
+        }
+      }
+
+      // Gracz
+      if (game.player && game.player.alive) {
+        const p = game.player;
+        if (p.shieldTimer > 0) p.shieldTimer--;
+        if (p.fireCooldown > 0) p.fireCooldown--;
+
+        const dir = getDesiredDirection();
+        if (dir !== null) {
+          moveTank(p, dir);
+        }
+
+        if (input.keys.fire || input.touchFire) {
+          fireBullet(p);
+        }
+
+        // Zbieranie Power-Upa
+        if (game.powerUp) {
+          if (rectsOverlap(p.x, p.y, TANK_SIZE, TANK_SIZE, game.powerUp.x, game.powerUp.y, 16, 16)) {
+            collectPowerUp();
+          }
+        }
+      }
+
+      // Czas trwania Power-Upa na planszy
+      if (game.powerUp) {
+        game.powerUp.timer--;
+        if (game.powerUp.timer <= 0) game.powerUp = null;
+      }
+
+      updateSpawns();
+      updateEnemies();
+      updateBullets();
+      updateEffects();
+
+      // Sprawdź warunek wygrania etapu (wszyscy 20 wrogów pokonani)
+      if (
+        game.eagleAlive &&
+        game.enemyQueue.length === 0 &&
+        game.enemies.length === 0 &&
+        game.spawns.filter(s => !s.isPlayer).length === 0
+      ) {
+        game.stageClearDelay++;
+        if (game.stageClearDelay > 85) {
+          game.state = STATE.STAGE_CLEAR;
+          game.stageClearTimer = 0;
+        }
+      }
+    }
+
+    function updateEffects() {
+      for (const ex of game.explosions) ex.timer++;
+      game.explosions = game.explosions.filter(ex => ex.timer < ex.maxTimer);
+
+      for (const ft of game.floatTexts) {
+        ft.timer--;
+        ft.y -= 0.15;
+      }
+      game.floatTexts = game.floatTexts.filter(ft => ft.timer > 0);
+    }
+
+    /* =====================================================================
+       10. RENDEROWANIE PIXEL-ART 1:1 (CANVAS 208x208)
+       ===================================================================== */
+    function drawBrickSubTile(x, y, mask) {
+      // Rysuj każdą z 4 ćwiartek (4x4 px) tylko jeśli jest ustawiona w masce
+      const drawQuad = (qx, qy, offset) => {
+        ctx.fillStyle = '#9e3818'; // Cegła
+        ctx.fillRect(qx, qy, 4, 4);
+        ctx.fillStyle = '#c85a32'; // Jasny rant
+        ctx.fillRect(qx, qy, 4, 1);
+        ctx.fillStyle = '#5a5a5a'; // Zaprawa
+        ctx.fillRect(qx, qy + 3, 4, 1);
+        ctx.fillRect(qx + (offset ? 2 : 0), qy, 1, 4);
+      };
+      if (mask & BM.TL) drawQuad(x, y, 0);
+      if (mask & BM.TR) drawQuad(x + 4, y, 1);
+      if (mask & BM.BL) drawQuad(x, y + 4, 1);
+      if (mask & BM.BR) drawQuad(x + 4, y + 4, 0);
+    }
+
+    function drawSteelSubTile(x, y) {
+      ctx.fillStyle = '#9c9c9c';
+      ctx.fillRect(x, y, 8, 8);
+      ctx.fillStyle = '#e8e8e8';
+      ctx.fillRect(x, y, 7, 1);
+      ctx.fillRect(x, y, 1, 7);
+      ctx.fillStyle = '#585858';
+      ctx.fillRect(x + 1, y + 7, 7, 1);
+      ctx.fillRect(x + 7, y + 1, 1, 7);
+      ctx.fillStyle = '#d4d4d4';
+      ctx.fillRect(x + 2, y + 2, 4, 4);
+    }
+
+    function drawWaterSubTile(x, y) {
+      const phase = Math.floor(game.frame / 20) % 2;
+      ctx.fillStyle = '#2448c8';
+      ctx.fillRect(x, y, 8, 8);
+      ctx.fillStyle = '#6898f8';
+      if (phase === 0) {
+        ctx.fillRect(x + 1, y + 2, 3, 1);
+        ctx.fillRect(x + 4, y + 5, 3, 1);
+      } else {
+        ctx.fillRect(x + 3, y + 2, 3, 1);
+        ctx.fillRect(x + 1, y + 6, 3, 1);
+      }
+    }
+
+    function drawBushSubTile(x, y) {
+      ctx.fillStyle = '#186818';
+      ctx.fillRect(x, y, 8, 8);
+      ctx.fillStyle = '#38a828';
+      ctx.fillRect(x + 1, y + 1, 3, 2);
+      ctx.fillRect(x + 4, y + 3, 3, 3);
+      ctx.fillRect(x + 1, y + 5, 2, 2);
+      ctx.fillStyle = '#68d848';
+      ctx.fillRect(x + 2, y + 1, 1, 1);
+      ctx.fillRect(x + 5, y + 4, 1, 1);
+    }
+
+    function drawEagle(alive) {
+      const x = 96; // col 12 * 8
+      const y = 192; // row 24 * 8
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x, y, 16, 16);
+
+      if (alive) {
+        // Klasyczny pikselowy orzełek Battle City
+        ctx.fillStyle = '#b8b8b8';
+        // Skrzydła
+        ctx.fillRect(x + 1, y + 3, 4, 9);
+        ctx.fillRect(x + 11, y + 3, 4, 9);
+        ctx.fillRect(x + 2, y + 2, 3, 11);
+        ctx.fillRect(x + 11, y + 2, 3, 11);
+        // Tułów
+        ctx.fillStyle = '#e8e8e8';
+        ctx.fillRect(x + 5, y + 4, 6, 9);
+        // Głowa
+        ctx.fillRect(x + 6, y + 1, 4, 4);
+        // Dziób / oczy
+        ctx.fillStyle = '#f7c825';
+        ctx.fillRect(x + 7, y + 2, 2, 1);
+        // Akcent na piersi
+        ctx.fillStyle = '#c82828';
+        ctx.fillRect(x + 7, y + 6, 2, 4);
+        // Łapy
+        ctx.fillStyle = '#f7c825';
+        ctx.fillRect(x + 5, y + 13, 2, 2);
+        ctx.fillRect(x + 9, y + 13, 2, 2);
+      } else {
+        // Zniszczona baza (biała flaga / gruz)
+        ctx.fillStyle = '#555';
+        ctx.fillRect(x + 2, y + 11, 12, 4);
+        ctx.fillStyle = '#888';
+        ctx.fillRect(x + 4, y + 9, 8, 3);
+        ctx.fillStyle = '#c84020';
+        ctx.fillRect(x + 6, y + 12, 3, 2);
+        ctx.fillStyle = '#ddd';
+        ctx.fillRect(x + 7, y + 3, 1, 9);
+        ctx.fillRect(x + 8, y + 3, 5, 4);
+      }
+    }
+
+    function drawTank(tank) {
+      const x = Math.round(tank.x);
+      const y = Math.round(tank.y);
+
+      let mainColor, darkColor, lightColor;
+      if (tank.isPlayer) {
+        mainColor = '#e79c21';
+        lightColor = '#f7e068';
+        darkColor = '#9c5a08';
+      } else {
+        // Czołg bonusowy miga na czerwono
+        if (tank.isBonus && Math.floor(game.frame / 7) % 2 === 0) {
+          mainColor = '#e03030';
+          lightColor = '#ff9898';
+          darkColor = '#881010';
+        } else if (tank.typeDef.id === 3) {
+          // Opancerzony zmienia kolor zależnie od pozostałego HP (4->3->2->1)
+          if (tank.hp === 4) { mainColor = '#3cb83c'; lightColor = '#8ef08e'; darkColor = '#1c681c'; }
+          else if (tank.hp === 3) { mainColor = '#d8b828'; lightColor = '#f8e878'; darkColor = '#886810'; }
+          else if (tank.hp === 2) { mainColor = '#48a8d8'; lightColor = '#98e0ff'; darkColor = '#1c5878'; }
+          else { mainColor = '#d8d8d8'; lightColor = '#ffffff'; darkColor = '#787878'; }
+        } else {
+          mainColor = tank.typeDef.color;
+          lightColor = '#ffffff';
+          darkColor = tank.typeDef.accent;
+        }
+      }
+
+      ctx.save();
+      ctx.translate(x + 8, y + 8);
+      ctx.rotate(tank.dir * Math.PI / 2);
+
+      const treadOffset = Math.floor(tank.treadFrame) % 2;
+
+      // Gąsienice (lewa i prawa)
+      ctx.fillStyle = darkColor;
+      ctx.fillRect(-7, -7, 3, 14);
+      ctx.fillRect(4, -7, 3, 14);
+
+      // Ząbki gąsienic (animowane)
+      ctx.fillStyle = '#181818';
+      for (let i = -6 + treadOffset; i <= 5; i += 2) {
+        ctx.fillRect(-7, i, 3, 1);
+        ctx.fillRect(4, i, 3, 1);
+      }
+
+      // Kadłub
+      ctx.fillStyle = mainColor;
+      ctx.fillRect(-4, -5, 8, 11);
+      ctx.fillStyle = lightColor;
+      ctx.fillRect(-3, -4, 2, 9);
+
+      // Wieżyczka
+      ctx.fillStyle = darkColor;
+      ctx.fillRect(-3, -2, 6, 6);
+      ctx.fillStyle = lightColor;
+      ctx.fillRect(-2, -1, 4, 4);
+
+      // Lufa (szersza przy wyższych gwiazdkach gracza)
+      ctx.fillStyle = lightColor;
+      const barrelW = (tank.isPlayer && game.playerTier >= 2) ? 3 : 2;
+      ctx.fillRect(-Math.floor(barrelW / 2), -8, barrelW, 7);
+
+      // Dodatkowe paski dla ulepszonego czołgu gracza
+      if (tank.isPlayer && game.playerTier >= 1) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-4, 4, 8, 1);
+      }
+      if (tank.isPlayer && game.playerTier >= 3) {
+        ctx.fillStyle = '#ff4444';
+        ctx.fillRect(-1, 0, 2, 2);
+      }
+
+      ctx.restore();
+
+      // Tarcza ochronna (Hełm / po odrodzeniu)
+      if (tank.isPlayer && tank.shieldTimer > 0) {
+        const blink = Math.floor(game.frame / 3) % 2;
+        ctx.strokeStyle = blink ? '#ffffff' : '#68d8ff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, y + 0.5, 15, 15);
+      }
+    }
+
+    function drawPowerUp(pu) {
+      // Miganie power-upa
+      if (Math.floor(game.frame / 8) % 2 === 0 && pu.timer < 180) return;
+
+      const x = pu.x;
+      const y = pu.y;
+
+      // Ramka kafelka power-up
+      ctx.fillStyle = '#e8e8e8';
+      ctx.fillRect(x, y, 16, 16);
+      ctx.fillStyle = '#181828';
+      ctx.fillRect(x + 1, y + 1, 14, 14);
+      ctx.fillStyle = '#4878d8';
+      ctx.fillRect(x + 2, y + 2, 12, 12);
+
+      // Ikona w środku
+      ctx.fillStyle = '#ffffff';
+      switch (pu.type) {
+        case 'HELMET':
+          ctx.fillStyle = '#f7d64a';
+          ctx.fillRect(x + 4, y + 5, 8, 5);
+          ctx.fillRect(x + 5, y + 4, 6, 1);
+          ctx.fillStyle = '#222';
+          ctx.fillRect(x + 5, y + 10, 6, 2);
+          break;
+        case 'CLOCK':
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(x + 4, y + 4, 8, 8);
+          ctx.fillStyle = '#c82828';
+          ctx.fillRect(x + 7, y + 5, 1, 4);
+          ctx.fillRect(x + 7, y + 8, 3, 1);
+          break;
+        case 'SHOVEL':
+          ctx.fillStyle = '#e8e8e8';
+          ctx.fillRect(x + 5, y + 3, 6, 5);
+          ctx.fillStyle = '#d89030';
+          ctx.fillRect(x + 7, y + 8, 2, 5);
+          break;
+        case 'STAR':
+          ctx.fillStyle = '#f7e038';
+          ctx.fillRect(x + 7, y + 3, 2, 10);
+          ctx.fillRect(x + 3, y + 7, 10, 2);
+          ctx.fillRect(x + 5, y + 5, 6, 6);
+          break;
+        case 'GRENADE':
+          ctx.fillStyle = '#38d848';
+          ctx.fillRect(x + 5, y + 5, 6, 7);
+          ctx.fillStyle = '#f7d64a';
+          ctx.fillRect(x + 6, y + 3, 4, 2);
+          break;
+        case 'TANK':
+          ctx.fillStyle = '#f7c825';
+          ctx.fillRect(x + 4, y + 5, 2, 7);
+          ctx.fillRect(x + 10, y + 5, 2, 7);
+          ctx.fillRect(x + 6, y + 6, 4, 5);
+          ctx.fillRect(x + 7, y + 3, 2, 4);
+          break;
+      }
+    }
+
+    function drawSpawnStar(s) {
+      const cx = s.x + 8;
+      const cy = s.y + 8;
+      const phase = Math.floor(s.timer / 5) % 4;
+      const r = [3, 5, 7, 5][phase];
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(cx - r, cy - 1, r * 2, 2);
+      ctx.fillRect(cx - 1, cy - r, 2, r * 2);
+      ctx.fillStyle = '#f7e068';
+      ctx.fillRect(cx - Math.floor(r / 2), cy - Math.floor(r / 2), r, r);
+    }
+
+    function drawExplosion(ex) {
+      const progress = ex.timer / ex.maxTimer;
+      const maxR = ex.big ? 14 : 6;
+      const r = Math.max(2, Math.round(Math.sin(progress * Math.PI) * maxR));
+      const x = Math.round(ex.x);
+      const y = Math.round(ex.y);
+
+      ctx.fillStyle = '#d83818';
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      ctx.fillStyle = '#f8a820';
+      const r2 = Math.max(1, Math.round(r * 0.65));
+      ctx.fillRect(x - r2, y - r2, r2 * 2, r2 * 2);
+      ctx.fillStyle = '#ffffff';
+      const r3 = Math.max(1, Math.round(r * 0.3));
+      ctx.fillRect(x - r3, y - r3, r3 * 2, r3 * 2);
+    }
+
+    function drawPlayfield() {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
+
+      // Warstwa 1: Cegły, Stal, Woda
+      for (let r = 0; r < SUB_TILES; r++) {
+        for (let c = 0; c < SUB_TILES; c++) {
+          const t = grid[r][c];
+          const x = c * SUB_SIZE;
+          const y = r * SUB_SIZE;
+          if (t === TILE.BRICK) drawBrickSubTile(x, y, brickMask[r][c]);
+          else if (t === TILE.STEEL) drawSteelSubTile(x, y);
+          else if (t === TILE.WATER) drawWaterSubTile(x, y);
+        }
+      }
+
+      // Baza z orzełkiem
+      drawEagle(game.eagleAlive);
+
+      // Gwiazdki spawnu
+      for (const s of game.spawns) drawSpawnStar(s);
+
+      // Czołgi
+      if (game.player && game.player.alive) drawTank(game.player);
+      for (const e of game.enemies) {
+        if (e.alive) drawTank(e);
+      }
+
+      // Pociski
+      ctx.fillStyle = '#ffffff';
+      for (const b of game.bullets) {
+        ctx.fillRect(Math.round(b.x), Math.round(b.y), b.w, b.h);
+      }
+
+      // Warstwa 2: Krzaki / Las (czołgi wjeżdżają POD spód!)
+      for (let r = 0; r < SUB_TILES; r++) {
+        for (let c = 0; c < SUB_TILES; c++) {
+          if (grid[r][c] === TILE.BUSH) {
+            drawBushSubTile(c * SUB_SIZE, r * SUB_SIZE);
+          }
+        }
+      }
+
+      // Power-Up (zawsze widoczny nad krzakami)
+      if (game.powerUp) drawPowerUp(game.powerUp);
+
+      // Eksplozje
+      for (const ex of game.explosions) drawExplosion(ex);
+
+      // Unoszące się punkty (100, 200, 500, 1UP)
+      ctx.font = 'bold 8px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      for (const ft of game.floatTexts) {
+        ctx.fillStyle = '#000';
+        ctx.fillText(ft.text, Math.round(ft.x) + 1, Math.round(ft.y) + 1);
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, Math.round(ft.x), Math.round(ft.y));
+      }
+    }
+
+    function drawTitleScreen() {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
+
+      // Górny pasek HI-SCORE
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 9px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`I- ${String(game.score).padStart(5, '0')}   HI- ${game.hiScore}`, LOGICAL_SIZE / 2, 22);
+
+      // Logo "TANK 1990" w kolorze ceglastym
+      ctx.fillStyle = '#d84818';
+      ctx.font = 'bold 28px "Courier New", monospace';
+      ctx.fillText('TANK', LOGICAL_SIZE / 2, 66);
+      ctx.fillStyle = '#f7c825';
+      ctx.font = 'bold 24px "Courier New", monospace';
+      ctx.fillText('1990', LOGICAL_SIZE / 2, 92);
+
+      // Podtytuł BATTLE CITY
+      ctx.fillStyle = '#c8c8c8';
+      ctx.font = 'bold 10px "Courier New", monospace';
+      ctx.fillText('BATTLE CITY EDITION', LOGICAL_SIZE / 2, 110);
+
+      // Animowany żółty czołg jako kursor obok napisu START
+      const cursorTank = {
+        isPlayer: true,
+        x: 42,
+        y: 132,
+        dir: DIR.RIGHT,
+        treadFrame: (game.frame / 6) % 2,
+        shieldTimer: 0
+      };
+      drawTank(cursorTank);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px "Courier New", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('1 PLAYER START', 66, 144);
+
+      // Migająca podpowiedź
+      if (Math.floor(game.frame / 22) % 2 === 0) {
+        ctx.fillStyle = '#f7c825';
+        ctx.font = 'bold 9px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('DOTKNIJ EKRAN LUB FIRE', LOGICAL_SIZE / 2, 178);
+      }
+
+      ctx.fillStyle = '#636363';
+      ctx.font = 'bold 8px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('PEGASUS / NES 1:1 TRIBUTE', LOGICAL_SIZE / 2, 198);
+    }
+
+    function drawCurtainScreen() {
+      drawPlayfield();
+      // Kurtyna zamykająca się i otwierająca pionowo
+      const half = LOGICAL_SIZE / 2;
+      let cover;
+      if (game.curtainTimer > 65) {
+        cover = half * (1 - (game.curtainTimer - 65) / 20);
+      } else if (game.curtainTimer > 20) {
+        cover = half;
+      } else {
+        cover = half * (game.curtainTimer / 20);
+      }
+
+      ctx.fillStyle = '#636363';
+      ctx.fillRect(0, 0, LOGICAL_SIZE, cover);
+      ctx.fillRect(0, LOGICAL_SIZE - cover, LOGICAL_SIZE, cover);
+
+      if (game.curtainTimer <= 65 && game.curtainTimer >= 20) {
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 14px "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`STAGE ${game.stage}`, LOGICAL_SIZE / 2, LOGICAL_SIZE / 2 + 5);
+      }
+    }
+
+    function drawStageClearScreen() {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#d84818';
+      ctx.font = 'bold 11px "Courier New", monospace';
+      ctx.fillText(`HI-SCORE   ${game.hiScore}`, LOGICAL_SIZE / 2, 22);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px "Courier New", monospace';
+      ctx.fillText(`STAGE ${game.stage} CLEAR!`, LOGICAL_SIZE / 2, 42);
+
+      ctx.fillStyle = '#f7c825';
+      ctx.font = 'bold 10px "Courier New", monospace';
+      ctx.fillText(`SCORE: ${game.score}`, LOGICAL_SIZE / 2, 60);
+
+      const rows = [
+        { type: ENEMY_TYPES.BASIC, label: 'BASIC',  y: 82,  showAt: 20 },
+        { type: ENEMY_TYPES.FAST,  label: 'FAST',   y: 106, showAt: 45 },
+        { type: ENEMY_TYPES.POWER, label: 'POWER',  y: 130, showAt: 70 },
+        { type: ENEMY_TYPES.ARMOR, label: 'ARMOR',  y: 154, showAt: 95 }
+      ];
+
+      let totalKills = 0;
+      for (const r of rows) {
+        const count = game.killsByType[r.type.id];
+        totalKills += count;
+        if (game.stageClearTimer >= r.showAt) {
+          // Mini czołg po prawej stronie wiersza
+          drawTank({
+            isPlayer: false,
+            typeDef: r.type,
+            hp: r.type.hp,
+            isBonus: false,
+            x: 106,
+            y: r.y - 11,
+            dir: DIR.UP,
+            treadFrame: 0
+          });
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 10px "Courier New", monospace';
+          ctx.textAlign = 'right';
+          ctx.fillText(`${String(count * r.type.points).padStart(4, ' ')} PTS`, 98, r.y);
+          ctx.textAlign = 'left';
+          ctx.fillText(`x ${count}`, 130, r.y);
+        }
+      }
+
+      if (game.stageClearTimer >= 120) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(36, 168, 136, 2);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#55ff55';
+        ctx.font = 'bold 11px "Courier New", monospace';
+        ctx.fillText(`TOTAL KILLS: ${totalKills}`, LOGICAL_SIZE / 2, 186);
+      }
+    }
+
+    function drawGameOverOverlay() {
+      // Klasyczny czerwony napis GAME OVER wyjeżdżający od dołu
+      const y = Math.round(game.gameOverY);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(46, y - 16, 116, 36);
+      ctx.strokeStyle = '#c82828';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(46, y - 16, 116, 36);
+
+      ctx.fillStyle = '#e83020';
+      ctx.font = 'bold 16px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('GAME', LOGICAL_SIZE / 2, y);
+      ctx.fillText('OVER', LOGICAL_SIZE / 2, y + 16);
+    }
+
+    function drawGameOverScreen() {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#e83020';
+      ctx.font = 'bold 26px "Courier New", monospace';
+      ctx.fillText('GAME', LOGICAL_SIZE / 2, 72);
+      ctx.fillText('OVER', LOGICAL_SIZE / 2, 100);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px "Courier New", monospace';
+      ctx.fillText(`ETAP: ${game.stage}`, LOGICAL_SIZE / 2, 128);
+      ctx.fillStyle = '#f7c825';
+      ctx.fillText(`WYNIK: ${game.score}`, LOGICAL_SIZE / 2, 146);
+
+      if (Math.floor(game.frame / 22) % 2 === 0) {
+        ctx.fillStyle = '#55ff55';
+        ctx.font = 'bold 10px "Courier New", monospace';
+        ctx.fillText('NACIŚNIJ FIRE / START', LOGICAL_SIZE / 2, 180);
+      }
+    }
+
+    function render() {
+      if (game.state === STATE.TITLE) {
+        drawTitleScreen();
+      } else if (game.state === STATE.CURTAIN) {
+        drawCurtainScreen();
+      } else if (game.state === STATE.STAGE_CLEAR) {
+        drawStageClearScreen();
+      } else if (game.state === STATE.GAME_OVER_SCREEN) {
+        drawGameOverScreen();
+      } else {
+        drawPlayfield();
+        if (game.state === STATE.GAME_OVER_ANIM) {
+          drawGameOverOverlay();
+        } else if (game.state === STATE.PAUSED) {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+          ctx.fillRect(0, 0, LOGICAL_SIZE, LOGICAL_SIZE);
+          ctx.fillStyle = '#f7c825';
+          ctx.font = 'bold 18px "Courier New", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('PAUZA', LOGICAL_SIZE / 2, LOGICAL_SIZE / 2 + 6);
+        }
+      }
+    }
+
+    /* =====================================================================
+       11. PANEL HUD I RESPONSYWNE SKALOWANIE PŁÓTNA
+       ===================================================================== */
+    const enemyIconSvg = `url("data:image/svg+xml,${encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8">' +
+      '<rect x="1" y="1" width="2" height="6" fill="#000"/>' +
+      '<rect x="5" y="1" width="2" height="6" fill="#000"/>' +
+      '<rect x="2" y="2" width="4" height="4" fill="#1a1a1a"/>' +
+      '<rect x="3" y="4" width="2" height="4" fill="#000"/>' +
+      '</svg>'
+    )}")`;
+
+    function updateHUD() {
+      hudScoreEl.textContent = game.score;
+      hudLivesEl.textContent = Math.max(0, game.lives);
+      hudStageEl.textContent = game.stage;
+
+      const remaining = game.enemyQueue.length;
+      enemyIconsEl.innerHTML = '';
+      for (let i = 0; i < 20; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'enemy-dot';
+        if (i < remaining) {
+          dot.style.backgroundImage = enemyIconSvg;
+        } else {
+          dot.style.opacity = '0.12';
+          dot.style.backgroundImage = enemyIconSvg;
+        }
+        enemyIconsEl.appendChild(dot);
+      }
+    }
+
+    // Dopasowanie wizualnego rozmiaru Canvas (zachowanie proporcji 1:1 bez rozmycia)
+    function resizeCanvas() {
+      const wrap = document.getElementById('canvas-wrap');
+      const rect = wrap.getBoundingClientRect();
+      const maxSide = Math.floor(Math.min(rect.width - 8, rect.height - 8));
+      const size = Math.max(160, maxSide);
+      canvas.style.width = `${size}px`;
+      canvas.style.height = `${size}px`;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 120));
+
+    /* =====================================================================
+       12. ZARZĄDZANIE STANAMI GRY (START / PAUZA / DŹWIĘK)
+       ===================================================================== */
+    function startNewGame() {
+      audio.unlock();
+      game.stage = 1;
+      game.score = 0;
+      game.lives = 3;
+      game.playerTier = 0;
+      startStageCurtain();
+    }
+
+    function startStageCurtain() {
+      loadStage(game.stage);
+      game.state = STATE.CURTAIN;
+      game.curtainTimer = 85;
+      game.stageClearTimer = 0;
+      audio.playStartJingle();
+    }
+
+    function togglePause() {
+      audio.unlock();
+      if (game.state === STATE.PLAYING) {
+        game.state = STATE.PAUSED;
+      } else if (game.state === STATE.PAUSED) {
+        game.state = STATE.PLAYING;
+      }
+    }
+
+    function toggleMute() {
+      audio.unlock();
+      audio.muted = !audio.muted;
+      const label = audio.muted ? 'DŹWIĘK: OFF' : 'DŹWIĘK: ON';
+      document.getElementById('btn-mute').textContent = label;
+      document.getElementById('btn-desk-mute').textContent = label;
+    }
+
+    function handleStartOrFire() {
+      audio.unlock();
+      if (game.state === STATE.TITLE || game.state === STATE.GAME_OVER_SCREEN) {
+        startNewGame();
+        return true;
+      }
+      return false;
+    }
+
+    /* =====================================================================
+       13. OBSŁUGA KLAWIATURY (DESKTOP)
+       ===================================================================== */
+    function pushDir(d) {
+      input.lastDirOrder = input.lastDirOrder.filter(x => x !== d);
+      input.lastDirOrder.push(d);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      const code = e.code;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) {
+        e.preventDefault();
+      }
+
+      if (code === 'KeyP') {
+        togglePause();
+        return;
+      }
+      if (code === 'KeyM') {
+        toggleMute();
+        return;
+      }
+
+      if (code === 'ArrowUp' || code === 'KeyW')    { input.keys.up = true; pushDir(DIR.UP); }
+      if (code === 'ArrowDown' || code === 'KeyS')  { input.keys.down = true; pushDir(DIR.DOWN); }
+      if (code === 'ArrowLeft' || code === 'KeyA')  { input.keys.left = true; pushDir(DIR.LEFT); }
+      if (code === 'ArrowRight' || code === 'KeyD') { input.keys.right = true; pushDir(DIR.RIGHT); }
+
+      if (code === 'Space' || code === 'KeyZ' || code === 'Enter') {
+        if (!handleStartOrFire()) {
+          input.keys.fire = true;
+        }
+      }
+    }, { passive: false });
+
+    window.addEventListener('keyup', (e) => {
+      const code = e.code;
+      if (code === 'ArrowUp' || code === 'KeyW')    input.keys.up = false;
+      if (code === 'ArrowDown' || code === 'KeyS')  input.keys.down = false;
+      if (code === 'ArrowLeft' || code === 'KeyA')  input.keys.left = false;
+      if (code === 'ArrowRight' || code === 'KeyD') input.keys.right = false;
+      if (code === 'Space' || code === 'KeyZ' || code === 'Enter') input.keys.fire = false;
+    });
+
+    /* =====================================================================
+       14. OBSŁUGA EKRANU DOTYKOWEGO (MULTI-TOUCH D-PAD + FIRE)
+       ===================================================================== */
+    const dpadEl = document.getElementById('dpad');
+    const fireBtn = document.getElementById('btn-fire');
+    const arrows = {
+      [DIR.UP]: document.getElementById('arr-up'),
+      [DIR.DOWN]: document.getElementById('arr-down'),
+      [DIR.LEFT]: document.getElementById('arr-left'),
+      [DIR.RIGHT]: document.getElementById('arr-right')
+    };
+
+    let dpadPointerId = null;
+    let firePointerId = null;
+
+    function setTouchDirection(dir) {
+      input.touchDir = dir;
+      Object.keys(arrows).forEach(k => {
+        arrows[k].classList.toggle('active', Number(k) === dir);
+      });
+    }
+
+    function computeDpadDirection(clientX, clientY) {
+      const rect = dpadEl.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = clientX - cx;
+      const dy = clientY - cy;
+      // Martwa strefa w samym środku krzyżaka
+      if (Math.hypot(dx, dy) < 12) return null;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        return dx > 0 ? DIR.RIGHT : DIR.LEFT;
+      } else {
+        return dy > 0 ? DIR.DOWN : DIR.UP;
+      }
+    }
+
+    // Pointer Events zapewniają płynny multi-touch (niezależny D-Pad i FIRE) oraz obsługę myszy
+    dpadEl.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      audio.unlock();
+      dpadPointerId = e.pointerId;
+      dpadEl.setPointerCapture(e.pointerId);
+      setTouchDirection(computeDpadDirection(e.clientX, e.clientY));
+    });
+
+    dpadEl.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== dpadPointerId) return;
+      e.preventDefault();
+      setTouchDirection(computeDpadDirection(e.clientX, e.clientY));
+    });
+
+    const releaseDpad = (e) => {
+      if (e.pointerId !== dpadPointerId) return;
+      dpadPointerId = null;
+      setTouchDirection(null);
+    };
+    dpadEl.addEventListener('pointerup', releaseDpad);
+    dpadEl.addEventListener('pointercancel', releaseDpad);
+
+    fireBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      firePointerId = e.pointerId;
+      fireBtn.setPointerCapture(e.pointerId);
+      fireBtn.classList.add('active');
+      if (!handleStartOrFire()) {
+        input.touchFire = true;
+      }
+    });
+
+    const releaseFire = (e) => {
+      if (e.pointerId !== firePointerId) return;
+      firePointerId = null;
+      input.touchFire = false;
+      fireBtn.classList.remove('active');
+    };
+    fireBtn.addEventListener('pointerup', releaseFire);
+    fireBtn.addEventListener('pointercancel', releaseFire);
+
+    // Dotknięcie samego płótna na ekranie tytułowym / Game Over również uruchamia grę
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      handleStartOrFire();
+    });
+
+    // Przyciski funkcyjne (mobile i desktop)
+    document.getElementById('btn-pause').addEventListener('click', togglePause);
+    document.getElementById('btn-mute').addEventListener('click', toggleMute);
+    document.getElementById('btn-desk-pause').addEventListener('click', togglePause);
+    document.getElementById('btn-desk-mute').addEventListener('click', toggleMute);
+
+    const deskPadBtn = document.getElementById('btn-desk-pad');
+    deskPadBtn.addEventListener('click', () => {
+      const tc = document.getElementById('touch-controls');
+      const active = tc.classList.toggle('force-show');
+      deskPadBtn.textContent = active ? 'PAD: ON' : 'PAD: OFF';
+      setTimeout(resizeCanvas, 50);
+    });
+
+    /* =====================================================================
+       15. PĘTLA GRY (STAŁY KROK 60 FPS)
+       ===================================================================== */
+    let lastTime = 0;
+    let accumulator = 0;
+    const STEP = 1000 / 60;
+
+    function gameLoop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min(100, timestamp - lastTime);
+      lastTime = timestamp;
+      accumulator += dt;
+
+      while (accumulator >= STEP) {
+        update();
+        accumulator -= STEP;
+      }
+
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.onload = () => {
+      updateHUD();
+      resizeCanvas();
+      requestAnimationFrame(gameLoop);
+    };
+  })();
+  </script>
+</body>
+</html>
+```
